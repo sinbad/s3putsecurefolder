@@ -63,7 +63,7 @@ parser.add_option('-n', '--dry-run', action='store_true', dest='simulate', defau
 parser.add_option('-a', '--accesskey', dest='access_key', 
                   help='AWS access key to use instead of relying on environment variable AWS_ACCESS_KEY')
 parser.add_option('-s', '--secretkey', dest='secret_key', 
-                  help='AWS secret key to use instead of relying on environment variable AWS_ACCESS_KEY')
+                  help='AWS secret key to use instead of relying on environment variable AWS_SECRET_KEY')
 parser.add_option('-c', '--create', action='store_true', dest='create_bucket', default=False,
                   help='Create bucket if it does not already exist')
 parser.add_option('-v', '--verbose', action='store_true', dest='verbose', default=False,
