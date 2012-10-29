@@ -28,6 +28,7 @@ import time
 from optparse import OptionParser
 from boto.s3.connection import S3Connection
 from boto.s3.bucket import Bucket
+import fnmatch
 
 SRC_MD5_META='s3putsecure-md5'
 
@@ -69,20 +70,27 @@ parser.add_option('-v', '--verbose', action='store_true', dest='verbose', defaul
                   help='Verbose output')
 parser.add_option('-S', '--symmetric', action='store_true', dest='symmetric', default=False,
                   help='Instead of encrypting with a public key, encrypts files using a symmetric cypher and the passphrase given on the command-line.')
+parser.add_option('-D', '--disableencryption', action='store_true', dest='donotencrypt', default=False,
+                  help='Do not encrypt before uploading.')
+parser.add_option('-X', '--exclude', action='append', type='string', dest='excludes', 
+                  help='Exclude file patterns')
 
 (options, args) = parser.parse_args()
 
 # check remaining args
-if len(args) < 3:
-    parser.error('Expected at least 3 arguments.')
+if len(args) < 2:
+    parser.error('Expected at least 2 arguments.')
+if len(args) < 3 and not options.donotencrypt:
+    parser.error('Expected at least 3 arguments for encrypted sync.')
 
 sourceFolder = args[0]
 targetBucket = args[1]
-gpgRecipOrPass = args[2]
+if not options.donotencrypt:
+    gpgRecipOrPass = args[2]
 simulate = options.simulate
 accessKey = options.access_key
 secretKey = options.secret_key
-
+donotencrypt = options.donotencrypt
 
 if not os.path.exists(sourceFolder):
     parser.error('Error ' + sourceFolder + ' does not exist.')
@@ -99,6 +107,9 @@ if secretKey is None:
 if secretKey is None:
     parser.error('Error, no AWS_SECRET_KEY defined, use -s or --secretkey.')
 
+if donotencrypt:
+    print 'Warning: encryption disabled as requested'
+
 print 'Uploading ' + sourceFolder + ' to s3://' + targetBucket
 
 print 'Establishing connection to S3...'    
@@ -113,10 +124,6 @@ if bucket is None:
         print 'Error, bucket ' + targetBucket + ' does not exist.'
         exit(-1) 
 print 'Bucket opened successfully.'
-if options.simulate:
-    print 'Simulation mode, not actually uploading data.'
-
-print 'Please be patient, hash calculations can take a few seconds on larger files.'
 
 # standardise path (removes any trailing slash & double slashes)
 sourceFolder = os.path.normpath(sourceFolder)
@@ -125,6 +132,18 @@ prefixlen = len(sourceFolder) + 1 # length of prefix, including trailing slash
 for dirpath, dirname, filenames in os.walk(sourceFolder):
     for f in filenames:
         fullpath = dirpath + '/' + f
+
+        # Check exclusions
+        excludeThis = False
+        if options.excludes is not None:
+            for exclude in options.excludes:
+                print 'Checking exclude: ' + exclude
+                if fnmatch.fnmatch(fullpath, exclude):
+                    excludeThis = True
+                    break
+        if excludeThis:
+            continue
+
         keyname = fullpath[prefixlen:]
         # check whether this key is present already
         key = bucket.get_key(keyname)
@@ -154,19 +173,22 @@ for dirpath, dirname, filenames in os.walk(sourceFolder):
         if not options.simulate:
             # set metadata BEFORE upload
             key.set_metadata(SRC_MD5_META, localmd5sum)
-            # encrypt first using gpg
-            tempfilename = tempfile.gettempdir() + '/' + f
-            if options.symmetric:
-                if options.verbose:
-                    print 'Symmetrically encrypting ' + fullpath + ' to ' + tempfilename
-                subprocess.check_call(['gpg', '-c', '--no-use-agent', '--yes', \
+            if not options.donotencrypt:
+                # encrypt first using gpg
+                tempfilename = tempfile.gettempdir() + '/' + f
+                if options.symmetric:
+                    if options.verbose:
+                        print 'Symmetrically encrypting ' + fullpath + ' to ' + tempfilename
+                    subprocess.check_call(['gpg', '-c', '--no-use-agent', '--yes', \
                                        '--passphrase', gpgRecipOrPass, '-o', tempfilename, \
                                        fullpath])
-            else:
-                if options.verbose:
-                    print 'Public-key encrypting ' + fullpath + ' to ' + tempfilename + ' for ' + gpgRecipOrPass
-                subprocess.check_call(['gpg', '-e', '-r', gpgRecipOrPass, '--yes', \
+                else:
+                    if options.verbose:
+                        print 'Public-key encrypting ' + fullpath + ' to ' + tempfilename + ' for ' + gpgRecipOrPass
+                    subprocess.check_call(['gpg', '-e', '-r', gpgRecipOrPass, '--yes', \
                          '-o', tempfilename, fullpath])          
+            else:
+                tempfilename = fullpath
             # upload, with progress
             currentKeyName = keyname
             lastTime=time.time()
