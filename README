@@ -1,0 +1,75 @@
+s3putsecurefolder.py
+--------------------
+
+Full discussion & background: http://www.stevestreeting.com/2009/08/02/s3-encrypted-upload-script-v2-python/
+
+Syncs the contents of a folder to Amazon S3, optionally encrypting the files with GPG beforehand.
+
+Each file is individually encrypted either with a public key of a private/public pair, or
+using a simple symmetric passphrase. Therefore you can still get to each file separately
+on S3, but would need to decrypt it to view the original contents.
+
+Determines which files to sync based on the MD5 hash of the unencrypted contents, which 
+is stored as metadata on the S3 side. This is more reliable than using date/time stamps
+due to the distributed nature and that these stamps are changed when encrypting files.
+
+This script never deletes any files on S3, it only creates or updates, making it suitable for
+backup purposes. Feel free to add a --delete option if you like ;)
+
+Authentication with S3 is either via explicit parameters (--accesskey, --secretkey), or
+you can define environment variables AWS_ACCESS_KEY and AWS_SECRET_KEY.
+
+Requirements
+------------
+
+Python 2.7+
+Boto (easy_install boto)
+GPG (if encrypting)
+
+Tested on Mac and Linux, probably works on Windows too. Maybe.
+
+
+Usage
+-----
+
+Usage: s3putsecurefolder.py [options] source_folder target_bucket [gpg_recipient_or_phrase]
+
+Options:
+  -h, --help            show this help message and exit
+  -n, --dry-run         Do not upload any files, just list actions
+  -a ACCESS_KEY, --accesskey=ACCESS_KEY
+                        AWS access key to use instead of relying on
+                        environment variable AWS_ACCESS_KEY
+  -s SECRET_KEY, --secretkey=SECRET_KEY
+                        AWS secret key to use instead of relying on
+                        environment variable AWS_SECRET_KEY
+  -c, --create          Create bucket if it does not already exist
+  -v, --verbose         Verbose output
+  -S, --symmetric       Instead of encrypting with a public key, encrypts
+                        files using a symmetric cypher and the passphrase
+                        given on the command-line.
+  -X, --exclude         Exclude a file or wildcard pattern (may be listed more than once)
+  -D, --disableencryption
+                        Do not encrypt files before upload.
+                        
+License
+-------
+Copyright (c) 2009-2012 Steve Streeting
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
