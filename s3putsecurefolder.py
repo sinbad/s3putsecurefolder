@@ -113,6 +113,10 @@ if bucket is None:
         print 'Error, bucket ' + targetBucket + ' does not exist.'
         exit(-1) 
 print 'Bucket opened successfully.'
+if options.simulate:
+    print 'Simulation mode, not actually uploading data.'
+
+print 'Please be patient, hash calculations can take a few seconds on larger files.'
 
 # standardise path (removes any trailing slash & double slashes)
 sourceFolder = os.path.normpath(sourceFolder)
