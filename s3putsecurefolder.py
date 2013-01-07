@@ -198,7 +198,8 @@ for dirpath, dirname, filenames in os.walk(sourceFolder):
             lastTime=time.time()
             currentKps = 0
             key.set_contents_from_filename(tempfilename, cb=progress, num_cb=100)
-            os.remove(tempfilename)
+            if not options.donotencrypt:
+                os.remove(tempfilename)
             # newline, to clear progress
             print
                             
